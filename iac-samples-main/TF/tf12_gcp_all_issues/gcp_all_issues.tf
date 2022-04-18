@@ -188,9 +188,11 @@ resource "google_compute_instance" "apps" {
   network_interface {
     network = "default"
 
-    access_config {
       // Ephemeral IP
     }
+  }
+  metadata = {
+    block-project-ssh-keys = true
   }
 }
 
@@ -209,9 +211,13 @@ resource "google_sql_database_instance" "postgres" {
   database_version = "POSTGRES_11"
 
   settings {
+    backup_configuration {
+      enabled = true
+    }
     tier = "db-f1-micro"
 
     ip_configuration {
+      require_ssl = true
       //SQL Instances with network authorization exposing them to the Internet
       // $.resource[*].google_sql_database_instance[*].*[*].settings[*].ip_configuration[*].authorized_networks[*].value anyEqual 0.0.0.0/0 or $.resource[*].google_sql_database_instance[*].*[*].settings[*].ip_configuration[*].authorized_networks[*].value anyEqual ::/0
       dynamic "authorized_networks" {
@@ -264,8 +270,6 @@ resource "google_compute_instance_template" "instance_template" {
   machine_type = "n1-standard-1"
   region = "us-central1"
 
-  can_ip_forward = true
-
   // boot disk
   disk {
     # ...
@@ -278,6 +282,9 @@ resource "google_compute_instance_template" "instance_template" {
 
   lifecycle {
     create_before_destroy = true
+  }
+  metadata = {
+    block-project-ssh-keys = true
   }
 }
 
@@ -305,7 +312,7 @@ resource "google_project" "my_project" {
   name = "My Project"
   project_id = "your-project-id"
   org_id = "1234567"
-  auto_create_network = true
+  auto_create_network = false
 }
 
 //GCP Projects have OS Login disabled
@@ -339,11 +346,11 @@ data "google_iam_policy" "admin" {
   }
 }
 resource "google_project_iam_member" "sql_client" {
-    role = "roles/editor"
+    role = "roles/cloudkms.admin"
     member = "serviceAccount:your-custom-sa@your-project.iam.gserviceaccount.com"
 }
 resource "google_project_iam_member" "sql_client2" {
-    role = "roles/iam.serviceAccountUser"
+    role = "roles/cloudkms.admin"
     member = "user:abc@gmail.com"
 }
 resource "google_project_iam_member" "sql_client3" {
